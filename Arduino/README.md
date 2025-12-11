@@ -18,7 +18,77 @@ App Inventor 앱과 실시간 통신하는 구조로 되어 있다.
 - 서보모터로 간식 배출
 - 시리얼 통신으로 Processing에 상태 전달
 
-📄 파일: `Arduino/pet_dispenser.ino`
+#include <Servo.h>
+
+#define TRIG 9
+#define ECHO 10
+#define BUTTON 7
+#define SERVO_PIN 6
+
+long duration;
+int distance;
+
+Servo servoMotor;
+
+void setup() {
+  Serial.begin(9600);
+
+  pinMode(TRIG, OUTPUT);
+  pinMode(ECHO, INPUT);
+
+  pinMode(BUTTON, INPUT_PULLUP); // 눌리면 LOW
+
+  servoMotor.attach(SERVO_PIN);
+  servoMotor.write(90);   // 초기 위치 (정지)
+}
+
+void loop() {
+
+  // ----- 초음파 거리 측정 -----
+  digitalWrite(TRIG, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG, LOW);
+
+  duration = pulseIn(ECHO, HIGH);
+  distance = duration * 0.034 / 2;
+
+  // 형식화된 출력
+  Serial.print("DIST:");
+  Serial.println(distance);
+
+  // ----- 스위치 상태 출력 -----
+  int btn = digitalRead(BUTTON);
+  if (btn == LOW) {
+    Serial.println("SWITCH:ON");
+    dispenseTreat();   // 버튼 눌리면 간식 지급
+  } else {
+    Serial.println("SWITCH:OFF");
+  }
+
+  // ----- Processing에서 명령 수신 -----
+  if (Serial.available()) {
+    char cmd = Serial.read();
+    if (cmd == 'F') {
+      dispenseTreat();
+    }
+  }
+
+  delay(250);
+}
+
+// -----------------------------
+// 간식 지급 동작
+// -----------------------------
+void dispenseTreat() {
+  servoMotor.write(0);     // 간식 투입
+  delay(500);
+  servoMotor.write(90);    // 기본 위치로 복귀
+  delay(300);
+  
+  Serial.println("FEED:DONE");
+}
 
 ---
 
@@ -27,7 +97,73 @@ App Inventor 앱과 실시간 통신하는 구조로 되어 있다.
 - App Inventor 요청을 받아 아두이노에 명령 전달
 - HTML/HTTP 간단 서버 기능 수행
 
-📄 파일: `Processing/server_processing.pde`
+import processing.serial.*;
+import processing.net.*;
+
+Serial arduino;
+Server server;
+
+String lastDist = "0";
+String lastSwitch = "OFF";
+String lastFeed = "NONE";
+
+void setup() {
+  println(Serial.list());
+  arduino = new Serial(this, "COM3", 9600);   // 포트 수정 필요
+  arduino.bufferUntil('\n');
+
+  server = new Server(this, 8000);
+  println("Server started at port 8000");
+}
+
+void serialEvent(Serial arduino) {
+  String s = arduino.readStringUntil('\n');
+  if (s == null) return;
+  s = s.trim();
+  println("Arduino → " + s);
+
+  if (s.startsWith("DIST:")) {
+    lastDist = s.substring(5);
+  } else if (s.startsWith("SWITCH:")) {
+    lastSwitch = s.substring(7);
+  } else if (s.startsWith("FEED:")) {
+    lastFeed = s.substring(5);
+  }
+}
+
+void draw() {
+  Client c = server.available();
+  if (c == null) return;
+
+  String req = c.readString();
+  if (req == null) return;
+
+  // ----- 데이터 요청 -----
+  if (req.indexOf("GET /data") != -1) {
+    String msg = lastDist + "|" + lastSwitch + "|" + lastFeed;
+    sendHttp(c, msg);
+  }
+
+  // ----- 간식 지급 명령 -----
+  else if (req.indexOf("GET /feed") != -1) {
+    arduino.write('F');
+    lastFeed = "SENT";
+    sendHttp(c, "OK");
+  }
+}
+
+void sendHttp(Client c, String body) {
+  String resp =
+    "HTTP/1.1 200 OK\r\n" +
+    "Content-Type: text/plain\r\n" +
+    "Access-Control-Allow-Origin: *\r\n" +
+    "\r\n" +
+    body;
+
+  c.write(resp);
+  c.stop();
+}
+
 
 ---
 
@@ -37,8 +173,8 @@ App Inventor 앱과 실시간 통신하는 구조로 되어 있다.
 - 버튼으로 간식 급여 명령 전송
 
 📄 파일  
-- `App/app.aia`  
-- `App/AppInventor_Screenshots/` (스크린샷 폴더)
+<img width="579" height="557" alt="앱인벤터" src="https://github.com/user-attachments/assets/4ea27b80-88fe-41fe-8c00-49ba66052a60" />
+
 
 ---
 
@@ -90,27 +226,6 @@ Label_Feed ← index 3
 ### 3) App Inventor 앱 실행  
 - Web URL을 **Processing 실행 PC의 IP + ":8080"** 로 설정  
   - 예: `http://192.168.0.13:8080/`
-
----
-
-## 📂 폴더 구조
-
-/Arduino
-pet_dispenser.ino
-
-/Processing
-server_processing.pde
-
-/App
-app.aia
-/AppInventor_Screenshots
-
-/Report
-Final_Report.pdf
-README.md (이 파일)
-
-/Video
-youtube_link.txt
 
 
 ---
