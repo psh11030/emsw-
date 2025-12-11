@@ -12,11 +12,16 @@ App Inventor 앱과 실시간 통신하는 구조로 되어 있다.
 
 ## 🏗 시스템 구성
 
+![KakaoTalk_20251211_122326406](https://github.com/user-attachments/assets/2491516f-7266-40be-986b-71028b979493)
+
+
 ### ✔ Arduino
 - 초음파 센서(HC-SR04)로 거리 측정
 - 스위치(On/Off) 입력 감지
 - 서보모터로 간식 배출
 - 시리얼 통신으로 Processing에 상태 전달
+
+[sketch_dec11a.zip](https://github.com/user-attachments/files/24093343/sketch_dec11a.zip)
 
 #include <Servo.h>
 
@@ -90,12 +95,16 @@ void dispenseTreat() {
   Serial.println("FEED:DONE");
 }
 
+
 ---
 
 ### ✔ Processing (Server)
 - 아두이노 시리얼 데이터를 읽고 App Inventor로 전달
 - App Inventor 요청을 받아 아두이노에 명령 전달
 - HTML/HTTP 간단 서버 기능 수행
+
+[sketch_251211a.zip](https://github.com/user-attachments/files/24093345/sketch_251211a.zip)
+
 
 import processing.serial.*;
 import processing.net.*;
@@ -109,7 +118,7 @@ String lastFeed = "NONE";
 
 void setup() {
   println(Serial.list());
-  arduino = new Serial(this, "COM3", 9600);   // 포트 수정 필요
+  arduino = new Serial(this, "COM3", 9600);   // Arduino 포트 확인 후 수정
   arduino.bufferUntil('\n');
 
   server = new Server(this, 8000);
@@ -119,6 +128,7 @@ void setup() {
 void serialEvent(Serial arduino) {
   String s = arduino.readStringUntil('\n');
   if (s == null) return;
+
   s = s.trim();
   println("Arduino → " + s);
 
