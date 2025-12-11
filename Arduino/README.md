@@ -242,7 +242,7 @@ Label_Feed ← index 3
 
 ## 🎥 시연 영상
 YouTube 링크  
-(예: https://youtu.be/XXXXXXXX)
+(https://youtube.com/shorts/miGkmjsa9cg?feature=share)
 
 ---
 
